@@ -1,0 +1,89 @@
+body {
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+  background-color: #f9f9f9;
+  height: 100vh; /* 전체 화면 높이 */
+  display: flex;
+  flex-direction: column;
+}
+
+.container {
+  flex: 1; /* 리스트 영역과 플로팅 버튼을 위한 공간 확보 */
+  display: flex;
+  flex-direction: column;
+}
+
+.list_header {
+  position: fixed; /* 화면 최상단에 고정 */
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 10;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: white;
+  color: #35a745;
+  padding: 10px 20px;
+  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+  box-sizing: border-box;
+}
+
+.list_container {
+  margin-top: 60px; /* 헤더 높이에 맞게 여백 추가 */
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+  box-sizing: border-box;
+
+  /* 스크롤 설정 추가 */
+  flex-grow: 1;
+  overflow-y: auto;
+}
+
+.sort_button,
+.delete_button {
+  font-size: 14px;
+  cursor: pointer;
+  background-color: transparent;
+  border: none;
+  color: #35a745;
+  font-weight: bold;
+}
+
+.delete_button {
+  color: red;
+}
+
+.responsive-button {
+  padding: 15px 30px;
+  font-size: 16px;
+  font-weight: bold;
+  color: #ffffff;
+  background-color: #007bff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.responsive-button:hover {
+  background-color: #0056b3;
+  transform: scale(1.05);
+}
+
+@media (max-width: 768px) {
+  .responsive-button {
+    padding: 12px 24px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .responsive-button {
+    padding: 10px 20px;
+    font-size: 12px;
+  }
+}
