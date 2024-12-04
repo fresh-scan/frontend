@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import "../css/Main.css";
 import ItemList from "./ItemList";
 import {
@@ -8,6 +8,8 @@ import {
   Fab,
   Dialog,
   DialogContent,
+  TextField,
+  CircularProgress,
 } from "@mui/material";
 import SwapVertIcon from "@mui/icons-material/SwapVert";
 import AddIcon from "@mui/icons-material/Add";
@@ -17,7 +19,9 @@ const Main = () => {
   const [sortMethod, setSortMethod] = useState("소비기한 적게 남은 순");
   const [selectedIds, setSelectedIds] = useState([]); // 선택된 ItemList의 id 배열
   const [items, setItems] = useState([]); // API에서 받아온 데이터 저장
-
+  const [editItem, setEditItem] = useState(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   // 메뉴 열기
   const handleMenuOpen = (event) => {
@@ -28,6 +32,14 @@ const Main = () => {
   const handleMenuClose = () => {
     setAnchorEl(null);
   };
+
+  // 세션 스토리지에서 데이터 불러오기
+  useEffect(() => {
+    const savedItems = sessionStorage.getItem("items");
+    if (savedItems) {
+      setItems(JSON.parse(savedItems));
+    }
+  }, []);
 
   // 정렬 변경
   const handleSortChange = (method) => {
@@ -58,6 +70,39 @@ const Main = () => {
         return [...prevSelectedIds, id];
       }
     });
+  };
+
+  // 수정 버튼 클릭
+  const handleEditClick = (item) => {
+    setEditItem(item);
+    setIsEditModalOpen(true);
+  };
+
+  // 수정 모달 저장
+  const handleEditSave = () => {
+    setItems((prevItems) => {
+      const updatedItems = prevItems.map((item) =>
+        item.id === editItem.id ? editItem : item
+      );
+      sessionStorage.setItem("items", JSON.stringify(updatedItems));
+
+      return updatedItems;
+    });
+
+    setIsEditModalOpen(false);
+  };
+
+  // 백엔드 데이터 저장 및 세션 스토리지에 저장
+  const saveToSessionStorage = (data) => {
+    setItems(data);
+    sessionStorage.setItem("items", JSON.stringify(data));
+  };
+
+  // 삭제 버튼 클릭 시 선택된 재료 삭제
+  const handleDeleteItems = () => {
+    const updatedItems = items.filter((item) => !selectedIds.includes(item.id));
+    saveToSessionStorage(updatedItems);
+    setSelectedIds([]);
   };
 
   // 카메라 기능 관련
@@ -164,7 +209,6 @@ const Main = () => {
         console.log("[DEBUG] 업데이트된 이미지 배열:", updated);
         return updated;
       });
-      alert("사진이 찍혔습니다");
     } else {
       console.error("[ERROR] 비디오 또는 캔버스가 정의되지 않았습니다.");
     }
@@ -172,6 +216,7 @@ const Main = () => {
 
   const sendImageToBackend = async () => {
     console.log("[DEBUG] 백엔드로 이미지 전송 시작...");
+    setIsLoading(true);
     try {
       const formData = new FormData();
 
@@ -198,10 +243,13 @@ const Main = () => {
       console.log("[DEBUG] POST 요청 전송 중...");
 
       //!!!!!!!!!!!!!!ngrok 주소 매번 변경해서 가져와야함!!!!!!!!!!
-      const res = await fetch("http://localhost:8080/api/process-images", {
-        method: "POST",
-        body: formData,
-      });
+      const res = await fetch(
+        "https://e61c-203-246-85-180.ngrok-free.app/api/process-images",
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
 
       // 응답 처리
       if (res.ok) {
@@ -212,8 +260,9 @@ const Main = () => {
           registeredDate: data.registeredDate[index] || "날짜 없음",
           expiryDate: data.expiryDate[index] || "날짜 없음",
         }));
-        setItems(mappedItems);
-        alert("이미지 업로드 성공!");
+        saveToSessionStorage(mappedItems);
+        // setItems(mappedItems);
+        //alert("이미지 업로드 성공!");
       } else {
         console.error("이미지 업로드 실패:", res.statusText);
         alert(`이미지 업로드 실패: ${res.statusText}`);
@@ -221,6 +270,8 @@ const Main = () => {
     } catch (error) {
       console.error("이미지 전송 중 오류 발생:", error);
       alert("이미지 전송 중 오류가 발생했습니다. 다시 시도해 주세요.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -255,7 +306,17 @@ const Main = () => {
             식재료 이름(ㄱ-ㅎ)
           </MenuItem>
         </Menu>
-        <div className="delete_button">재료삭제</div>
+        <Button
+          onClick={handleDeleteItems}
+          sx={{
+            marginLeft: "16px",
+            boxShadow: "none",
+            color: "red",
+            "&:hover": { boxShadow: "none" },
+          }}
+        >
+          재료삭제
+        </Button>
       </div>
       <div className="list_container">
         {items.map((item) => (
@@ -267,6 +328,7 @@ const Main = () => {
             expiryDate={item.expiryDate}
             selected={selectedIds.includes(item.id)}
             onClick={() => handleItemClick(item.id)}
+            onEditClick={() => handleEditClick(item)}
           />
         ))}
       </div>
@@ -285,6 +347,48 @@ const Main = () => {
       >
         <AddIcon />
       </Fab>
+
+      <Dialog
+        open={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogContent>
+          <h3>재료 수정</h3>
+          {editItem && (
+            <>
+              <TextField
+                label="재료 이름"
+                fullWidth
+                margin="normal"
+                value={editItem.name}
+                onChange={(e) =>
+                  setEditItem({ ...editItem, name: e.target.value })
+                }
+              />
+              <TextField
+                label="소비기한"
+                fullWidth
+                margin="normal"
+                type="date"
+                value={editItem.expiryDate}
+                onChange={(e) =>
+                  setEditItem({ ...editItem, expiryDate: e.target.value })
+                }
+              />
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={handleEditSave}
+                sx={{ mt: 2 }}
+              >
+                저장
+              </Button>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* 카메라 다이얼로그 */}
       <Dialog
@@ -316,26 +420,32 @@ const Main = () => {
 
       {/* 캡처된 이미지 미리보기 */}
       <div style={{ textAlign: "center", marginTop: "20px" }}>
-        <h3>촬영된 이미지:</h3>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
-          {capturedImages.map((image, index) => (
-            <img
-              key={index}
-              src={image}
-              alt={`Captured ${index}`}
-              style={{ width: "100px", height: "100px" }}
-            />
-          ))}
-        </div>
-        {capturedImages.length > 0 && (
-          <Button
-            variant="contained"
-            color="secondary"
-            onClick={sendImageToBackend}
-            sx={{ mt: 2 }}
-          >
-            완료
-          </Button>
+        {isLoading ? (
+          <CircularProgress sx={{ marginTop: 2 }} /> // 로딩 스피너 표시
+        ) : (
+          <>
+            <h3>촬영된 이미지:</h3>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
+              {capturedImages.map((image, index) => (
+                <img
+                  key={index}
+                  src={image}
+                  alt={`Captured ${index}`}
+                  style={{ width: "100px", height: "100px" }}
+                />
+              ))}
+            </div>
+            {capturedImages.length > 0 && (
+              <Button
+                variant="contained"
+                color="secondary"
+                onClick={sendImageToBackend}
+                sx={{ mt: 2 }}
+              >
+                완료
+              </Button>
+            )}
+          </>
         )}
       </div>
     </div>

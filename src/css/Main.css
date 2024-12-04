@@ -41,6 +41,13 @@ body {
   /* 스크롤 설정 추가 */
   flex-grow: 1;
   overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.list_container > * {
+  max-width: 100%;
+  flex-shrink: 1; /* 부모 너비 초과 방지 */
+  box-sizing: border-box;
 }
 
 .sort_button,
